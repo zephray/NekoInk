@@ -1,0 +1,20 @@
+(kicad_sch (version 20210406) (generator eeschema)
+
+  (uuid 80fa4297-9b1b-4634-b40f-e54a3f0def3a)
+
+  (paper "A3")
+
+  (title_block
+    (title "Archer Mainboard")
+    (date "2021-05-13")
+    (rev "R0.1")
+    (company "Copyright EI-2030 2021. / Engineer: Wenting Zhang")
+    (comment 2 "MERCHANTABILITY, SATISFACTORY QUALITY AND FITNESS FOR A PARTICULAR PURPOSE.")
+    (comment 3 "This source is distributed WITHOUT ANY EXPRESS OR IMPLIED WARRANTY, INCLUDING OF")
+    (comment 4 "This source describes Open Hardware and is licensed under the CERN-OHL-S v2.")
+  )
+
+  (lib_symbols
+  )
+
+)
