@@ -454,6 +454,9 @@
     (path "/00000000-0000-0000-0000-00005d180a01/c0e6bde6-95c9-49eb-817e-b4c8bf91fff1"
       (reference "#PWR0132") (unit 1) (value "GND") (footprint "")
     )
+    (path "/00000000-0000-0000-0000-00005d4c99f9/07845504-21c7-4efc-97a5-859e16f65ca0"
+      (reference "#PWR0133") (unit 1) (value "+VCCIO_SD") (footprint "")
+    )
     (path "/00000000-0000-0000-0000-00005d180a01/1ec43e38-65d2-4d23-a469-cf6a37298f15"
       (reference "#PWR0134") (unit 1) (value "+3V3") (footprint "")
     )
@@ -852,9 +855,6 @@
     )
     (path "/375e0a10-f948-48fc-a4eb-553ac6c7cac0/ea344157-8429-4a6a-a7bb-7e77ed7e835e"
       (reference "#PWR0910") (unit 1) (value "GND") (footprint "")
-    )
-    (path "/00000000-0000-0000-0000-00005d4c99f9/07845504-21c7-4efc-97a5-859e16f65ca0"
-      (reference "#PWR?") (unit 1) (value "+VCCIO_SD") (footprint "")
     )
     (path "/375e0a10-f948-48fc-a4eb-553ac6c7cac0/24befc4e-ed39-4a07-b336-b62a063e56db"
       (reference "ANT901") (unit 1) (value "PCB_WIFI_ANT") (footprint "footprints:bt_antenna_1ant_2gnd")

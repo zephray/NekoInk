@@ -4741,7 +4741,7 @@
   (symbol (lib_id "symbols:+VCCIO_SD") (at 176.53 215.9 0) (unit 1)
     (in_bom yes) (on_board yes)
     (uuid 07845504-21c7-4efc-97a5-859e16f65ca0)
-    (property "Reference" "#PWR?" (id 0) (at 176.53 219.71 0)
+    (property "Reference" "#PWR0133" (id 0) (at 176.53 219.71 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Value" "+VCCIO_SD" (id 1) (at 176.53 212.09 0))
