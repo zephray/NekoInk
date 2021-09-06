@@ -1670,7 +1670,7 @@
       (reference "SW101") (unit 1) (value "EVQPUJ02K") (footprint "Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA")
     )
     (path "/00000000-0000-0000-0000-00005d4c99f9/42178fc2-d76d-43fa-a3c0-7f0558fab9a4"
-      (reference "TH1") (unit 1) (value "10K") (footprint "Resistor_SMD:R_0603_1608Metric")
+      (reference "TH1") (unit 1) (value "10K") (footprint "Resistor_SMD:R_0402_1005Metric")
     )
     (path "/00000000-0000-0000-0000-00005db51f59/9e925efe-4bf9-4886-850e-b2e7669ff2ea"
       (reference "TH501") (unit 1) (value "10K") (footprint "Resistor_SMD:R_0402_1005Metric")
