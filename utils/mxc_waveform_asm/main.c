@@ -6,20 +6,40 @@
  * 
  * Copyright 2021 Wenting Zhang
  * 
+ * This is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software
+ * Foundation, either version 2 of the License, or (at your option) any later
+ * version.
+ *
+ * This software is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ * FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+ * details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * the software. If not, see <http://www.gnu.org/licenses/>.
+ * 
  * This file is partially derived from Linux kernel driver, with the following
  * copyright information:
  * Copyright (C) 2014-2016 Freescale Semiconductor, Inc.
  * Copyright 2017 NXP
+ * 
+ * inih is used in this project, which is licensed under BSD-3-Clause.
+ * csv_parser is used in this project, which is licensed under MIT.
  ******************************************************************************/
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <libgen.h>
 #include "ini.h"
+#include "csv.h"
 
 #define MAX_MODES (32) // Maximum waveform modes supported
 #define MAX_TEMPS (32) // Maximum temperature ranges supported
+
+#define MAX_CSV_LINE (1024)
 
 #define GREYSCALE_BPP   (2)
 #define GREYSCALE_LEVEL (16)
@@ -58,17 +78,13 @@ typedef struct {
 } waveform_data_file_t;
 
 typedef struct {
-    uint8_t lut[GREYSCALE_LEVEL][GREYSCALE_LEVEL];
-} waveform_lut_t;
-
-typedef struct {
     char *prefix;
     int modes;
     char **mode_names;
     int *frame_counts;
     int temps;
     int *temp_ranges;
-    waveform_lut_t **luts; // luts[mode][temp]
+    uint8_t ***luts; // luts[mode][temp][frame count * 256 + dst * 16 + src]
 } context_t;
 
 static int ini_parser_handler(void* user, const char* section, const char* name,
@@ -151,6 +167,72 @@ static void write_uint64_le(uint8_t* dst, uint64_t val) {
     dst[0] = (val) & 0xff;
 }
 
+static void parse_range(const char* str, int* begin, int* end) {
+    // Parse range specified in the waveform.
+    // Example:
+    // 2 - 2 to 2
+    // 0:15 - 0 to 15
+    // 4:7 - 4 to 7
+    char* delim = strchr(str, ':');
+    if (delim) {
+        *begin = atoi(str);
+        *end = atoi(delim + 1);
+    }
+    else {
+        *begin = atoi(str);
+        *end = *begin;
+    }
+}
+
+static void load_waveform_csv(const char* filename, int frame_count,
+        uint8_t* lut) {
+    FILE* fp = fopen(filename, "r");
+    assert(fp);
+
+    char* line;
+    int done = 0;
+    int err = 0;
+    int rst = 1; // Reset fread_csv_line internal state in the first call
+    while (!done) {
+        line = fread_csv_line(fp, MAX_CSV_LINE, &done, &err, rst);
+        rst = 0;
+        if (!line) continue;
+        char** parsed = parse_csv(line);
+        if (!parsed) continue;
+        // Parse source/ destination range
+        int src0, src1, dst0, dst1;
+        assert(parsed[0]);
+        assert(parsed[1]);
+        parse_range(parsed[0], &src0, &src1);
+        parse_range(parsed[1], &dst0, &dst1);
+        // Fill in LUT
+        for (int i = 2; i < frame_count + 2; i++) {
+            assert(parsed[i]);
+            uint8_t val = atoi(parsed[i]);
+            for (int src = src0; src <= src1; src++) {
+                for (int dst = dst0; dst <= dst1; dst++) {
+                    lut[i * 256 + dst * 16 + src] = val;
+                }
+            }
+        }
+        free_csv_line(parsed);
+    }
+
+    fclose(fp);
+}
+
+static void dump_lut(int frame_count, uint8_t* lut) {
+    for (int src = 0; src < 16; src++) {
+        for (int dst = 0; dst < 16; dst++) {
+            printf("%x -> %x: ", src, dst);
+            for (int frame = 0; frame < frame_count; frame++) {
+                printf("%d ", lut[frame * 256 + dst * 16 + src]);
+            }
+            printf("\n");
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
     context_t context;
     
@@ -182,7 +264,29 @@ int main(int argc, char *argv[]) {
         printf("Temp %d: %d degC\n", i, context.temp_ranges[i]);
     }
 
+    assert(context.modes < 100);
+    assert(context.temps < 100);
+
     // Load actual waveform
+    char *dir = dirname(argv[1]); // The return of dirname should not be free()d
+    size_t dirlen = strlen(dir);
+    context.luts = malloc(context.modes * sizeof(uint8_t**));
+    assert(context.luts);
+    for (int i = 0; i < context.modes; i++) {
+        context.luts[i] = malloc(context.temps * sizeof(uint8_t*));
+        assert(context.luts[i]);
+        for (int j = 0; j < context.temps; j++) {
+            context.luts[i][j] = malloc(context.frame_counts[i] * 256);
+            assert(context.luts[i][j]);
+            char* fn = malloc(dirlen + strlen(context.prefix) + 14);
+            assert(fn);
+            sprintf(fn, "%s/%s_M%d_T%d.csv", dir, context.prefix, i, j);
+            printf("Loading %s...\n", fn);
+            load_waveform_csv(fn, context.frame_counts[i], context.luts[i][j]);
+            dump_lut(context.frame_counts[i], context.luts[i][j]);
+            free(fn);
+        }
+    }
 
     // Calculate file size and offset
     uint64_t header_size = sizeof(waveform_data_header_t);
@@ -205,12 +309,12 @@ int main(int argc, char *argv[]) {
         printf("Mode %d temp table offset %08llx\n", i, total_size);
 
         total_size += temp_offset_table_size;
-        uint64_t mode_data_size = context.frame_counts[i] * 512;
-        printf("Mode %d data size %llu bytes.\n", i, mode_data_size);
+        uint64_t data_size = context.frame_counts[i] * 256 + sizeof(uint64_t);
+        printf("Mode %d data size %llu bytes.\n", i, data_size);
         for (int j = 0; j < context.temps; j++) {
             data_offset_table[i * context.temps + j] = total_size;
             printf("Mode %d Temp %d data offset %08llx\n", i, j, total_size);
-            total_size += mode_data_size;
+            total_size += data_size;
         }
     }
     total_size += header_size + temp_table_size + 1;
@@ -243,7 +347,16 @@ int main(int argc, char *argv[]) {
     }
 
     // Fill waveform data
-    // TODO
+    for (int i = 0; i < context.modes; i++) {
+        for (int j = 0; j < context.temps; j++) {
+            uint8_t* wvfm_wr_ptr =
+                    &wvfm_data_region[data_offset_table[i * context.temps + j]];
+            write_uint64_le(wvfm_wr_ptr, context.frame_counts[i]);
+            wvfm_wr_ptr += 8;
+            memcpy(wvfm_wr_ptr, context.luts[i][j],
+                    context.frame_counts[i] * 256);
+        }
+    }
 
     // Write waveform file
     FILE *outFile = fopen(argv[2], "wb");
@@ -253,6 +366,23 @@ int main(int argc, char *argv[]) {
     assert(written == 1);
 
     fclose(outFile);
+
+    printf("Finished.\n");
+
+    // Free buffers
+    free(pwvfm_file);
+    free(context.prefix);
+    for (int i = 0; i < context.modes; i++) {
+        free(context.mode_names[i]);
+        for (int j = 0; j < context.temps; j++) {
+            free(context.luts[i][j]);
+        }
+        free(context.luts[i]);
+    }
+    free(context.mode_names);
+    free(context.luts);
+    free(context.frame_counts);
+    free(context.temp_ranges);
 
     return 0;
 }
