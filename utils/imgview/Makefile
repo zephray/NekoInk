@@ -63,7 +63,7 @@ CPUFLAGS :=
 
 COMMONFLAGS := \
 	$(shell $(SDL_CONFIG) --cflags) \
-	-g3 -O1 \
+	-g -O2 \
 	-Wuninitialized \
 	-Wall \
 
