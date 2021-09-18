@@ -88,3 +88,7 @@ To be implemented.
 # License
 
 The design, unless otherwise specified, is released under the CERN Open Source Hardware License version 2 permissive variant, CERN-OHL-P. A copy of the license is provided in the source repository. Additionally, user guide of the license is provided on ohwr.org.
+
+The waveform converting tool is licensed under GNU GPLv2+ due to use of Linux kernel source code.
+
+The image viewer tool is licensed under MIT. stb library used in the image viewer is public domain.
