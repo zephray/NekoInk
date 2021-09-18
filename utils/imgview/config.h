@@ -4,7 +4,7 @@
 // PC simulator uses SDL for input and output
 // Target uses fbdev and evdev directly
 #define BUILD_PC_SIM
-#undef BUILD_TARGET
+#undef BUILD_NEKOINK
 
 // Target resolution
 #if defined(BUILD_PC_SIM)
@@ -17,6 +17,8 @@
 #define DISP_HEIGHT (1680)
 #endif
 
+#define DISP_GAMMA (2.2f)
+
 #define ENABLE_COLOR
 
 #ifdef ENABLE_COLOR
@@ -28,5 +30,14 @@
 //#define DEPTH_1BPP // monochrome
 //#define DEPTH_2BPP // 4 grey / 64 color
 #define DEPTH_4BPP // 16 grey / 4096 color
+//#define DEPTH_8BPP
 
 #define ENABLE_DITHERING
+
+// Dithering options
+#ifdef ENABLE_COLOR
+    #define DITHERING_ERRBUF_LINES (4)
+#else
+    #define DITHERING_ERRBUF_LINES (2)
+#endif
+#define DITHERING_GAMMA_AWARE
