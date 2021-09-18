@@ -82,8 +82,11 @@ int main(int argc, char *argv[]) {
 
     printf("Filtering image: ");
     PROFILE(disp_filtering_image(target, zero_rect, zero_rect));
-    disp_present();
 
+    printf("Present image: ");
+    PROFILE(disp_present(zero_rect, WVMD_GC16, true));
+
+#if defined(BUILD_PC_SIM)
     SDL_Event event;
     float time_delta = 0.0f;
     int last_ticks = SDL_GetTicks();
@@ -110,6 +113,7 @@ int main(int argc, char *argv[]) {
         if (time_to_wait > 0)
             SDL_Delay(time_to_wait);
     }
+#endif
 
     disp_deinit();
 

@@ -52,6 +52,14 @@ typedef enum {
     PIXFMT_C8
 } PixelFormat;
 
+typedef enum {
+    WVMD_INIT = 0,
+    WVMD_DU = 1,
+    WVMD_GC16 = 2,
+    WVMD_GC4 = 3,
+    WVMD_A2 = 4
+} WaveformMode;
+
 typedef struct {
     int width;
     int height;
@@ -70,8 +78,8 @@ Canvas *disp_create(int w, int h, PixelFormat fmt);
 void disp_free(Canvas *canvas);
 void disp_conv(Canvas *dst, Canvas *src);
 void disp_scale_image_fit(Canvas *src, Canvas *dst);
-void disp_filtering_image(Canvas *src, Rect srcRect, Rect dstRect);
+void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect);
 void disp_init(void);
 void disp_deinit(void);
-void disp_present(void);
+void disp_present(Rect dest_rect, WaveformMode mode, bool wait);
 Canvas *disp_load_image(char *filename);

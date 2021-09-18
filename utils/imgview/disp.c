@@ -38,17 +38,26 @@
 #include <SDL.h>
 #elif defined(BUILD_NEKOINK)
 // Use FBDEV on NekoInk 1st gen
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#include <linux/mxcfb.h>
+#include <sys/mman.h>
 #endif
 
 #if defined(BUILD_PC_SIM)
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
-#elif defined(BUILD_NEKOINK)
-
-#endif
-
 static Canvas *screen;
+#elif defined(BUILD_NEKOINK)
+uint32_t marker_value = 0;
+int fd_fbdev;
+struct fb_var_screeninfo var_screeninfo;
+uint8_t *fbdev_fb;
+#endif
 
 static int disp_get_bpp(PixelFormat fmt) {
     switch(fmt) {
@@ -309,36 +318,59 @@ static uint32_t get_panel_color_component(int x, int y) {
         return 1; // g
 }
 
-static float srgb_to_linear(uint8_t val) {
-    float srgb = val / 255.0f;
-    float linear = powf(srgb, DISP_GAMMA);
-    //printf("srgb %f -> linear %f\n", srgb, linear);
-    return linear;
+static float degamma_table[256];
+static uint8_t gamma_table[256];
+
+static void build_gamma_table(void) {
+    for (int i = 0; i < 256; i++) {
+        degamma_table[i] = powf(i / 255.0f, DISP_GAMMA);
+        gamma_table[i] = powf(i / 255.0f, 1.0f / DISP_GAMMA) * 255.0f;
+    }
 }
 
-static uint8_t linear_to_srgb(float val) {
-    float srgb = powf(val, 1.0f / DISP_GAMMA);
-    int32_t srgbi = srgb * 255.0f;
-    if (srgbi > 255) srgbi = 255;
-    if (srgbi < 0) srgbi = 0;
-    return srgbi;
+static float srgb_to_linear(uint8_t val) {
+    return degamma_table[val];
 }
+
+#if 0
+// Accurate version
+static uint8_t linear_to_srgb(float val) {
+    int low = 0, high = 255, mid;
+    while ((high - low) > 1) {
+        mid = (low + high) / 2;
+        if (val > gamma_table[mid])
+            low = mid;
+        else
+            high = mid;
+    }
+    float difflow = fabsf(val - gamma_table[low]);
+    float diffhigh = fabsf(val - gamma_table[high]);
+    int srgb = (difflow < diffhigh) ? low : high;
+    return srgb;
+}
+#else
+// Not accurate, good enough for 4bpp
+static uint8_t linear_to_srgb(float val) {
+    size_t index = (size_t)(val * 255.0f);
+    return gamma_table[index];
+}
+#endif
 
 // Process image to be displayed on EPD
-void disp_filtering_image(Canvas *src, Rect srcRect, Rect dstRect) {
+void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
     uint8_t *src_raw = (uint8_t *)src->buf;
 #if defined(BUILD_PC_SIM)
     uint32_t *dst_raw = (uint32_t *)screen->buf;
 #elif defined(BUILD_NEKOINK)
-    uint8_t *dst_raw = screen->buf;
+    uint8_t *dst_raw = fb;
 #endif
     uint32_t dst_w = screen->width;
-    uint32_t src_x = srcRect.x;
-    uint32_t src_y = srcRect.y;
-    uint32_t w = srcRect.w;
-    uint32_t h = srcRect.h;
-    uint32_t dst_x = dstRect.x;
-    uint32_t dst_y = dstRect.y;
+    uint32_t src_x = src_rect.x;
+    uint32_t src_y = src_rect.y;
+    uint32_t w = src_rect.w;
+    uint32_t h = src_rect.h;
+    uint32_t dst_x = dst_rect.x;
+    uint32_t dst_y = dst_rect.y;
     if ((w == 0) && (h == 0)) {
         w = src->width;
         h = src->height;
@@ -534,12 +566,18 @@ void disp_filtering_image(Canvas *src, Rect srcRect, Rect dstRect) {
     memcpy(texture_pixels, screen->buf, screen->height * texture_pitch);
     SDL_UnlockTexture(texture);
 #elif defined(BUILD_NEKOINK)
-
+    // Already using 8bpp framebuffer, nothing to be done here.
 #endif
 
 }
 
 void disp_init(void) {
+
+#if (defined(ENABLE_DITHERING) && defined(DITHERING_GAMMA_AWARE))
+    build_gamma_table();
+#endif
+
+#if defined(BUILD_PC_SIM)
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         fprintf(stderr, "SDL initialization error %s\n", SDL_GetError());
         exit(1);
@@ -563,16 +601,142 @@ void disp_init(void) {
             SDL_TEXTUREACCESS_STREAMING, w, h);
     
     screen = disp_create(w, h, PIXFMT_ARGB8888);
+#elif defined(BUILD_NEKOINK)
+    char devname[] = "/dev/fbxx";
+    char epdcid[] = "mxc_epdc_fb";
+    struct fb_fix_screeninfo fix_screeninfo;
+    bool found = false;
+    // Try to detect epdc fb device
+    for (int i = 0; i < 3; i++) {
+        sprintf(devname, "/dev/fb%d", i);
+        fd_fbdev = open(devname, O_RDWR, 0);
+        if (fd_fbdev < 0) {
+            fprintf(stderr, "Failed to open fbdev %s\n", devname);
+            exit(1);
+        }
+        if (ioctl(fd_fbdev, FBIOGET_FSCREENINFO, &fix_screeninfo) < 0) {
+            fprintf(stderr, "Failed to get fixed screeninfo for %s\n", devname);
+            exit(1);
+        }
+        if (!strcmp(screen_info_fix.id, epdcid)) {
+            printf("Opened EPDC device %s\n", devname);
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        fprintf(stderr, "Failed to find and open EPDC device.\n");
+        exit(1);
+    }
+
+    if (ioctl(fd_fbdev, FBIOGET_VSCREENINFO, &var_screeninfo) < 0) {
+        fprintf(stderr, "Failed to get variable screeninfo\n");
+        exit(1);
+    }
+
+    var_screeninfo.rotate = FB_ROTATE_UR;
+    var_screeninfo.bits_per_pixel = 8;
+    var_screeninfo.grayscale = GRAYSCALE_8BIT;
+    var_screeninfo.yoffset = 0;
+    var_screeninfo.activate = FB_ACTIVATE_FORCE;
+    if (ioctl(fd_fbdev, FBIOPUT_VSCREENINFO, &var_screeninfo) < 0) {
+        fprintf(stderr, "Failed to set screen mode\n");
+        exit(1);
+    }
+
+    int w, h;
+    w = var_screeninfo.xres_virtual;
+    h = var_screeninfo.yres_virtual;
+    size_t fb_size = w * h * var_screeninfo.bits_per_pixel / 8;
+    printf("Screen size: %d x %d\n", w, h);
+
+    fb = (uint8_t *)mmap(0, fb_size, PROT_READ | PROT_WRITE, MAP_SHARED,
+            fd_fbdev, 0);
+    if ((int32_t)fb <= 0) {
+        fprintf(stderr, "Failed to set screen mode\n");
+        exit(1);
+    }
+
+    // Disable auto update mode (region mode)
+    uint32_t auto_update_mode = AUTO_UPDATE_MODE_REGION_MODE;
+    if (ioctl(fd_fbdev, MXCFB_SET_AUTO_UPDATE_MODE, &auto_update_mode) < 0) {
+        fprintf(stderr, "Failed to set auto update mode\n");
+        exit(1);
+    }
+
+    // Setup waveform mode for auto wave mode (not used)
+    struct mxcfb_waveform_modes waveform_modes;
+    waveform_modes.mode_init = (uint32_t)WVMD_INIT;
+    waveform_modes.mode_du   = (uint32_t)WVMD_DU;
+    waveform_modes.mode_gc4  = (uint32_t)WVMD_GC4;
+    waveform_modes.mode_gc8  = (uint32_t)WVMD_GC16;
+    waveform_modes.mode_gc16 = (uint32_t)WVMD_GC16;
+    waveform_modes.mode_gc32 = (uint32_t)WVMD_GC16;
+    if (ioctl(fd_fbdev, MXCFB_SET_WAVEFORM_MODES, &waveform_modes) < 0) {
+        fprintf(stderr, "Failed to set waveform mode\n");
+        exit(1);
+    }
+
+    // Set update scheme
+    uint32_t scheme = UPDATE_SCHEME_QUEUE_AND_MERGE;
+    if (ioctl(fd_fbdev, MXCFB_SET_UPDATE_SCHEME, &scheme) < 0) {
+        fprintf(stderr, "Failed to set update scheme\n");
+        exit(1);
+    }
+
+    // Set power down delay
+    uint32_t powerdown_delay = 0;
+    if (ioctl(fd_fbdev, MXCFB_SET_PWRDOWN_DELAY, &powerdown_delay) < 0) {
+        fprintf(stderr, "Failed to set power down delay\n");
+    }
+#endif
 }
 
 void disp_deinit(void) {
+#if defined(BUILD_PC_SIM)
     SDL_DestroyWindow(window);
     SDL_Quit();
+#elif defined(BUILD_NEKOINK)
+    munmap(fb);
+    close(fd_fbdev);
+#endif
 }
 
-void disp_present(void) {
+void disp_present(Rect dest_rect, WaveformMode mode, bool wait) {
+#if defined(BUILD_PC_SIM)
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
+#elif defined(BUILD_NEKOINK)
+    struct mxcfb_update_data update_data;
+    struct mxcfb_update_marker_data update_marker_data;
+
+    update_data.update_mode = UPDATE_MODE_PARTIAL;
+    update_data.waveform_mode = mode;
+    update_data.update_region.left = dest_rect.x;
+    update_data.update_region.top = dest_rect.y;
+    update_data.update_region.width = dest_rect.w;
+    update_data.update_region.height = dest_rect.h;
+    update_data.temp = TEMP_USE_AMBIENT;
+    update_data.flags = 0;
+
+    if (wait)
+        update_data.update_marker = ++marker_value;
+    else
+        update_data.update_marker = 0;
+
+    if (ioctl(fd_fbdev, MXCFB_SEND_UPDATE, &update_data) < 0) {
+        fprintf(stderr, "Failed sending udpdate\n");
+        return;
+    }
+
+    if (wait) {
+        update_marker_data.update_marker = marker_value;
+        if (ioctl(fd_fbdev, MXCFB_WAIT_FOR_UPDATE_COMPLETE,
+                &update_marker_data) < 0) {
+            fprintf(stderr, "Failed waiting for update complete\n");
+        }
+    }
+#endif
 }
 
 Canvas *disp_load_image(char *filename) {
