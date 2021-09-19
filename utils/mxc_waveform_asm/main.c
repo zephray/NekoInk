@@ -189,6 +189,9 @@ static void load_waveform_csv(const char* filename, int frame_count,
     FILE* fp = fopen(filename, "r");
     assert(fp);
 
+    // Unspecified parts of LUT will be filled with 3 instead of 0 for debugging
+    memset(lut, 3, frame_count * 256);
+
     char* line;
     int done = 0;
     int err = 0;
@@ -206,9 +209,9 @@ static void load_waveform_csv(const char* filename, int frame_count,
         parse_range(parsed[0], &src0, &src1);
         parse_range(parsed[1], &dst0, &dst1);
         // Fill in LUT
-        for (int i = 2; i < frame_count + 2; i++) {
+        for (int i = 0; i < frame_count; i++) {
             assert(parsed[i]);
-            uint8_t val = atoi(parsed[i]);
+            uint8_t val = atoi(parsed[i + 2]);
             for (int src = src0; src <= src1; src++) {
                 for (int dst = dst0; dst <= dst1; dst++) {
                     lut[i * 256 + dst * 16 + src] = val;
@@ -216,6 +219,7 @@ static void load_waveform_csv(const char* filename, int frame_count,
             }
         }
         free_csv_line(parsed);
+        free(line);
     }
 
     fclose(fp);
@@ -283,7 +287,7 @@ int main(int argc, char *argv[]) {
             sprintf(fn, "%s/%s_M%d_T%d.csv", dir, context.prefix, i, j);
             printf("Loading %s...\n", fn);
             load_waveform_csv(fn, context.frame_counts[i], context.luts[i][j]);
-            dump_lut(context.frame_counts[i], context.luts[i][j]);
+            //dump_lut(context.frame_counts[i], context.luts[i][j]);
             free(fn);
         }
     }
@@ -306,18 +310,21 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < context.modes; i++) {
         // Set the offset of the current mode
         mode_offset_table[i] = total_size;
-        printf("Mode %d temp table offset %08llx\n", i, total_size);
+        printf("Mode %d temp table offset %08lx (%ld)\n", i, total_size,
+                total_size);
 
         total_size += temp_offset_table_size;
         uint64_t data_size = context.frame_counts[i] * 256 + sizeof(uint64_t);
-        printf("Mode %d data size %llu bytes.\n", i, data_size);
+        printf("Mode %d data size %lu bytes (%ld).\n", i, data_size, data_size);
         for (int j = 0; j < context.temps; j++) {
             data_offset_table[i * context.temps + j] = total_size;
-            printf("Mode %d Temp %d data offset %08llx\n", i, j, total_size);
+            printf("Mode %d Temp %d data offset %08llx (%ld)\n", i, j,
+                    total_size, total_size);
             total_size += data_size;
         }
     }
     total_size += header_size + temp_table_size + 1;
+    printf("Total file size %ld\n", total_size);
 
     // Allocate memory for waveform buffer
     waveform_data_file_t* pwvfm_file = malloc(total_size);
@@ -334,6 +341,9 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < context.temps; i++) {
         pwvfm_file->data[i] = context.temp_ranges[i];
     }
+
+    // Set 1 byte padding
+    pwvfm_file->data[context.temps] = 0;
 
     // Fill waveform offset table and temp offset table
     uint8_t* wvfm_data_region = &pwvfm_file->data[data_region_offset];
@@ -353,6 +363,7 @@ int main(int argc, char *argv[]) {
                     &wvfm_data_region[data_offset_table[i * context.temps + j]];
             write_uint64_le(wvfm_wr_ptr, context.frame_counts[i]);
             wvfm_wr_ptr += 8;
+            printf("Writing to %08x to %08x\n", (size_t)wvfm_wr_ptr, (size_t)wvfm_wr_ptr + context.frame_counts[i] * 256);
             memcpy(wvfm_wr_ptr, context.luts[i][j],
                     context.frame_counts[i] * 256);
         }
@@ -383,6 +394,8 @@ int main(int argc, char *argv[]) {
     free(context.luts);
     free(context.frame_counts);
     free(context.temp_ranges);
+    free(mode_offset_table);
+    free(data_offset_table);
 
     return 0;
 }
