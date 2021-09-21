@@ -59,9 +59,12 @@ The descriptor contains the follwoing required fields:
 * PREFIX: the filename prefix for actual waveform files
 * MODES: the total modes supported by the waveform
 * TEMPS: the total number of temperature ranges supported by the waveform
-* MxNAME: the name for each mode, where x is the mode ID
-* MxFC: the frame count for each mode, where x is the mode ID
 * TxRANGE: the supported temperature in degC, where x is the temperature ID
+
+And each mode has its own mode section named \[MODEx\], where x is the mode ID, containing the following fields:
+
+* NAME: the name for that mode
+* TxFC: the frame count for the temperature in that mode, where x is the temperature ID
 
 There should be in total of modes x temps of LUTs, saved in the filename of PREFIX_Mx_Ty.csv. Each csv file should contain the a LUT like this: lut\[src\]\[dst\]\[frame\], which means, to transition from src greyscale level to dst greyscale level, at a certain frame in a frame sequence, what voltage should be applied to the screen (0/3: GND / Keep, 1: VPOS / To black, 2: VNEG / To white). Each line contains the frame sequence for one or more source to destination pairs.
 
@@ -79,7 +82,7 @@ With current design, each mode should have fixed frame count for all associated 
 Tools are provided in utils/ folder.
 
 * To convert from iwf to fw (iMX6/7 EPDC format): ```./mxc_wvfm_asm input.iwf output.fw``` 
-* To convert from wbf (Eink format) to iwf: ```./wbf_wvfm_dump input.wbf output.iwf```
+* To convert from fw to iwf: ```./mxc_wvfm_dump input.wbf output_prefix```
 
 ### Generating
 

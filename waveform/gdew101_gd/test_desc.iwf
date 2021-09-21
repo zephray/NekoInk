@@ -17,19 +17,25 @@ MODES = 5
 ; TEMPS is the total number of temperature ranges supported by the waveform
 TEMPS = 1
 
-; Define the supported modes (string), not currently used by anything
-M0NAME = INIT
-M1NAME = DU
-M2NAME = GC16
-M3NAME = GC4
-M4NAME = A2
-
-; Define the frame count for each mode
-M0FC = 162
-M1FC = 18
-M2FC = 38
-M3FC = 41
-M4FC = 33
-
 ; Define the supported temperature in degC
 T0RANGE = 25
+
+[MODE0]
+NAME = INIT
+T0FC = 162
+
+[MODE1]
+NAME = DU
+T0FC = 18
+
+[MODE2]
+NAME = GC16
+T0FC = 38
+
+[MODE3]
+NAME = GC4
+T0FC = 41
+
+[MODE4]
+NAME = A2
+T0FC = 33
