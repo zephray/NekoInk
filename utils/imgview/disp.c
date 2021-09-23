@@ -8,7 +8,7 @@
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in
 // all copies or substantial portions of the Software.
 //
@@ -26,8 +26,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <math.h>
 #include <assert.h>
+#include <string.h>
 #include "config.h"
 #include "disp.h"
 #include "stb_image_resize.h"
@@ -51,13 +53,16 @@
 static SDL_Window *window;
 static SDL_Renderer *renderer;
 static SDL_Texture *texture;
-static Canvas *screen;
 #elif defined(BUILD_NEKOINK)
 uint32_t marker_value = 0;
 int fd_fbdev;
+int fb_virtual_x;
+size_t fb_size;
 struct fb_var_screeninfo var_screeninfo;
 uint8_t *fbdev_fb;
 #endif
+
+static Canvas *screen;
 
 static int disp_get_bpp(PixelFormat fmt) {
     switch(fmt) {
@@ -299,7 +304,7 @@ void disp_scale_image_fit(Canvas *src, Canvas *dst) {
 // For a certain pixel, get its color component on the EPD screen,
 // return in the RSH amount to get the component
 static uint32_t get_panel_color_shift(int x, int y) {
-    int c = (x + y) % 3;
+    int c = (x + (DISP_HEIGHT - y)) % 3;
     if (c == 0)
         return 16; // r
     else if (c == 1)
@@ -309,7 +314,7 @@ static uint32_t get_panel_color_shift(int x, int y) {
 }
 
 static uint32_t get_panel_color_component(int x, int y) {
-    int c = (x + y) % 3;
+    int c = (x + (DISP_HEIGHT - y)) % 3;
     if (c == 0)
         return 0; // r
     else if (c == 1)
@@ -362,7 +367,7 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
 #if defined(BUILD_PC_SIM)
     uint32_t *dst_raw = (uint32_t *)screen->buf;
 #elif defined(BUILD_NEKOINK)
-    uint8_t *dst_raw = fb;
+    uint8_t *dst_raw = (uint8_t *)screen->buf;
 #endif
     uint32_t dst_w = screen->width;
     uint32_t src_x = src_rect.x;
@@ -475,7 +480,7 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
     #define DIFFUSE_ERROR(x, y, w, h, error, factor, sum)\
             if (((y) > 0) && ((x) > 0) && ((y) < h) && ((x) < w)) \
                 err_buf[((y) % DITHERING_ERRBUF_LINES) * w + x] += error * factor / sum;
-    
+
     #ifdef ENABLE_COLOR
             // . . * . . 1
             // . 2 . . 3 .
@@ -566,7 +571,14 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
     memcpy(texture_pixels, screen->buf, screen->height * texture_pitch);
     SDL_UnlockTexture(texture);
 #elif defined(BUILD_NEKOINK)
-    // Already using 8bpp framebuffer, nothing to be done here.
+    // TODO: Directly write into FB?
+    uint8_t *wrptr = fbdev_fb;
+    uint8_t *rdptr = dst_raw;
+    for (int i = 0; i < screen->height; i++) {
+        memcpy(wrptr, rdptr, screen->width);
+        wrptr += fb_virtual_x;
+        rdptr += screen->width;
+    }
 #endif
 
 }
@@ -586,7 +598,7 @@ void disp_init(void) {
     window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED,
             SDL_WINDOWPOS_UNDEFINED, DISP_WIDTH, DISP_HEIGHT,
             SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
-    
+
     int w, h;
     SDL_GL_GetDrawableSize(window, &w, &h);
     // Detect 2X HiDPI screen, if high dpi, set to 1X size
@@ -599,7 +611,7 @@ void disp_init(void) {
 
     texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888,
             SDL_TEXTUREACCESS_STREAMING, w, h);
-    
+
     screen = disp_create(w, h, PIXFMT_ARGB8888);
 #elif defined(BUILD_NEKOINK)
     char devname[] = "/dev/fbxx";
@@ -618,7 +630,7 @@ void disp_init(void) {
             fprintf(stderr, "Failed to get fixed screeninfo for %s\n", devname);
             exit(1);
         }
-        if (!strcmp(screen_info_fix.id, epdcid)) {
+        if (!strcmp(fix_screeninfo.id, epdcid)) {
             printf("Opened EPDC device %s\n", devname);
             found = true;
             break;
@@ -647,12 +659,17 @@ void disp_init(void) {
     int w, h;
     w = var_screeninfo.xres_virtual;
     h = var_screeninfo.yres_virtual;
-    size_t fb_size = w * h * var_screeninfo.bits_per_pixel / 8;
-    printf("Screen size: %d x %d\n", w, h);
+    fb_size = w * h * var_screeninfo.bits_per_pixel / 8;
+    fb_virtual_x = w;
+    printf("Virtual screen size: %d x %d\n", w, h);
 
-    fb = (uint8_t *)mmap(0, fb_size, PROT_READ | PROT_WRITE, MAP_SHARED,
-            fd_fbdev, 0);
-    if ((int32_t)fb <= 0) {
+    w = var_screeninfo.xres;
+    h = var_screeninfo.yres;
+    printf("Actual screen size: %d x %d\n", w, h);
+
+    fbdev_fb = (uint8_t *)mmap(0, fb_size,
+            PROT_READ | PROT_WRITE, MAP_SHARED, fd_fbdev, 0);
+    if ((int32_t)fbdev_fb <= 0) {
         fprintf(stderr, "Failed to set screen mode\n");
         exit(1);
     }
@@ -689,6 +706,15 @@ void disp_init(void) {
     if (ioctl(fd_fbdev, MXCFB_SET_PWRDOWN_DELAY, &powerdown_delay) < 0) {
         fprintf(stderr, "Failed to set power down delay\n");
     }
+
+    screen = disp_create(w, h, PIXFMT_Y8);
+
+    // Clear screen
+    Rect zero_rect = {0};
+    memset(fbdev_fb, 0xff, fb_size);
+    disp_present(zero_rect, WVMD_INIT, false, true);
+    //memset(fbdev_fb, 0x00, fb_size);
+    //disp_present(zero_rect, WVMD_GC16, true, true);
 #endif
 }
 
@@ -697,20 +723,24 @@ void disp_deinit(void) {
     SDL_DestroyWindow(window);
     SDL_Quit();
 #elif defined(BUILD_NEKOINK)
-    munmap(fb);
+    munmap(fbdev_fb, fb_size);
     close(fd_fbdev);
 #endif
 }
 
-void disp_present(Rect dest_rect, WaveformMode mode, bool wait) {
+void disp_present(Rect dest_rect, WaveformMode mode, bool partial, bool wait) {
 #if defined(BUILD_PC_SIM)
     SDL_RenderCopy(renderer, texture, NULL, NULL);
     SDL_RenderPresent(renderer);
 #elif defined(BUILD_NEKOINK)
+    if ((dest_rect.w == 0) && (dest_rect.h == 0)) {
+        dest_rect.w = screen->width;
+        dest_rect.h = screen->height;
+    }
     struct mxcfb_update_data update_data;
     struct mxcfb_update_marker_data update_marker_data;
 
-    update_data.update_mode = UPDATE_MODE_PARTIAL;
+    update_data.update_mode = partial ? UPDATE_MODE_PARTIAL : UPDATE_MODE_FULL;
     update_data.waveform_mode = mode;
     update_data.update_region.left = dest_rect.x;
     update_data.update_region.top = dest_rect.y;

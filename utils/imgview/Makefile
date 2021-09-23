@@ -57,7 +57,7 @@ RM		= rm -f
 MV		= mv -f
 
 LDFILES	:=
-LIBS	:= -lpthread $(shell $(SDL_CONFIG) --libs) -lSDL2_image
+LIBS	:= -lm -lpthread $(shell $(SDL_CONFIG) --libs)
 
 CPUFLAGS :=
 

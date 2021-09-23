@@ -26,10 +26,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <SDL.h>
+#include <stdint.h>
+#include <time.h>
 #include "config.h"
 #include "disp.h"
 
+#if defined(BUILD_PC_SIM)
+#include <SDL.h>
+#endif
 
 #define PROFILE(x) { \
     clock_t t = clock();\
@@ -58,6 +62,7 @@ int main(int argc, char *argv[]) {
 #else
     Canvas *target = disp_create(DISP_WIDTH, DISP_HEIGHT, PIXFMT_Y8);
 #endif
+    Rect zero_rect = {0};
 
     disp_init();
 
@@ -75,8 +80,6 @@ int main(int argc, char *argv[]) {
         image = image_new;
     }
 
-    Rect zero_rect = {0};
-
     printf("Scaling image: ");
     PROFILE(disp_scale_image_fit(image, target));
 
@@ -84,7 +87,7 @@ int main(int argc, char *argv[]) {
     PROFILE(disp_filtering_image(target, zero_rect, zero_rect));
 
     printf("Present image: ");
-    PROFILE(disp_present(zero_rect, WVMD_GC16, true));
+    PROFILE(disp_present(zero_rect, WVMD_GC16, true, true));
 
 #if defined(BUILD_PC_SIM)
     SDL_Event event;

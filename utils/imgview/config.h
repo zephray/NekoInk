@@ -4,7 +4,7 @@
 // PC simulator uses SDL for input and output
 // Target uses fbdev and evdev directly
 #define BUILD_PC_SIM
-#undef BUILD_NEKOINK
+//#define BUILD_NEKOINK
 
 // Target resolution
 #if defined(BUILD_PC_SIM)
@@ -12,7 +12,7 @@
 #define TARGET_FPS (30)
 #define DISP_WIDTH (2232)
 #define DISP_HEIGHT (1680)
-#elif defined(BUILD_TARGET)
+#elif defined(BUILD_NEKOINK)
 #define DISP_WIDTH (2232)
 #define DISP_HEIGHT (1680)
 #endif

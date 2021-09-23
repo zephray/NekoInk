@@ -81,5 +81,5 @@ void disp_scale_image_fit(Canvas *src, Canvas *dst);
 void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect);
 void disp_init(void);
 void disp_deinit(void);
-void disp_present(Rect dest_rect, WaveformMode mode, bool wait);
+void disp_present(Rect dest_rect, WaveformMode mode, bool partial, bool wait);
 Canvas *disp_load_image(char *filename);
