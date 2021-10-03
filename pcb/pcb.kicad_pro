@@ -44,8 +44,8 @@
         "silk_text_thickness": 0.15,
         "silk_text_upright": false,
         "zones": {
-          "45_degree_only": true,
-          "min_clearance": 0.0
+          "45_degree_only": false,
+          "min_clearance": 0.12
         }
       },
       "diff_pair_dimensions": [
@@ -124,6 +124,7 @@
         0.0,
         0.1,
         0.11,
+        0.12,
         0.13,
         0.15,
         0.2,
@@ -370,7 +371,7 @@
     "classes": [
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.1,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -387,7 +388,7 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.1,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -396,14 +397,6 @@
         "microvia_drill": 0.1,
         "name": "CSI",
         "nets": [
-          "CSI_D0",
-          "CSI_D1",
-          "CSI_D10",
-          "CSI_D11",
-          "CSI_D12",
-          "CSI_D13",
-          "CSI_D14",
-          "CSI_D15",
           "CSI_D2",
           "CSI_D3",
           "CSI_D4",
@@ -425,7 +418,7 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.1,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -433,31 +426,7 @@
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "DPI",
-        "nets": [
-          "LCD1_CLK",
-          "LCD1_DE",
-          "LCD1_HSYNC",
-          "LCD1_RESET",
-          "LCD1_VSYNC",
-          "LCD_D0",
-          "LCD_D1",
-          "LCD_D10",
-          "LCD_D11",
-          "LCD_D12",
-          "LCD_D13",
-          "LCD_D14",
-          "LCD_D15",
-          "LCD_D2",
-          "LCD_D3",
-          "LCD_D4",
-          "LCD_D5",
-          "LCD_D6",
-          "LCD_D7",
-          "LCD_D8",
-          "LCD_D9",
-          "LCD_EN",
-          "LCD_PWM"
-        ],
+        "nets": [],
         "pcb_color": "rgb(0, 180, 126)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.11,
@@ -467,10 +436,10 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.1,
         "diff_pair_via_gap": 0.25,
-        "diff_pair_width": 0.15,
+        "diff_pair_width": 0.1,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
@@ -485,7 +454,7 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -513,7 +482,6 @@
           "EPDC_GDCLK",
           "EPDC_GDOE",
           "EPDC_GDSP",
-          "EPDC_PWRSTAT",
           "EPDC_SDCE0",
           "EPDC_SDCLK",
           "EPDC_SDLE",
@@ -530,7 +498,7 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.25,
         "diff_pair_via_gap": 0.25,
         "diff_pair_width": 0.2,
@@ -545,7 +513,6 @@
           "SD1_DATA1",
           "SD1_DATA2",
           "SD1_DATA3",
-          "SD1_VSELECT",
           "SD2_CLK",
           "SD2_CMD",
           "SD2_DATA0",
@@ -666,24 +633,15 @@
       },
       {
         "bus_width": 12.0,
-        "clearance": 0.0995,
+        "clearance": 0.1,
         "diff_pair_gap": 0.1,
         "diff_pair_via_gap": 0.25,
-        "diff_pair_width": 0.2,
+        "diff_pair_width": 0.12,
         "line_style": 0,
         "microvia_diameter": 0.3,
         "microvia_drill": 0.1,
         "name": "USB",
-        "nets": [
-          "/usb/DEVICE_DN",
-          "/usb/DEVICE_DP",
-          "/usb/HOST_DN",
-          "/usb/HOST_DP",
-          "USB_DEVICE_DN",
-          "USB_DEVICE_DP",
-          "USB_HOST_DN",
-          "USB_HOST_DP"
-        ],
+        "nets": [],
         "pcb_color": "rgba(0, 0, 0, 0.000)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
         "track_width": 0.15,
@@ -693,7 +651,7 @@
       }
     ],
     "meta": {
-      "version": 1
+      "version": 2
     },
     "net_colors": {
       "+1V35": "rgb(219, 0, 204)",
@@ -714,7 +672,7 @@
     "page_layout_descr_file": ""
   },
   "schematic": {
-    "annotate_start_num": 500,
+    "annotate_start_num": 900,
     "drawing": {
       "default_bus_thickness": 12.0,
       "default_junction_size": 36.0,
@@ -735,7 +693,7 @@
     "legacy_lib_dir": "",
     "legacy_lib_list": [],
     "meta": {
-      "version": 0
+      "version": 1
     },
     "net_format_name": "",
     "ngspice": {
@@ -772,10 +730,6 @@
       "ddr"
     ],
     [
-      "a99b2a16-3543-41b5-9f4a-1d704e8a44c9",
-      "dvp"
-    ],
-    [
       "00000000-0000-0000-0000-00005db2122b",
       "storage"
     ],
@@ -788,16 +742,12 @@
       "usb"
     ],
     [
-      "8a775e2d-170b-4dae-98b1-d920b17f314a",
-      "audio"
-    ],
-    [
-      "d552e7cb-6931-4dab-8067-1e21d7e2be15",
-      "ethernet"
-    ],
-    [
       "375e0a10-f948-48fc-a4eb-553ac6c7cac0",
       "wifibt"
+    ],
+    [
+      "7096b536-2013-45ef-a5b0-6e7db6824ed0",
+      "expansion"
     ]
   ],
   "text_variables": {}
