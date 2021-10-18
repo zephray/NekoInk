@@ -45,7 +45,7 @@
         "silk_text_upright": false,
         "zones": {
           "45_degree_only": false,
-          "min_clearance": 0.12
+          "min_clearance": 0.254
         }
       },
       "diff_pair_dimensions": [
@@ -522,7 +522,7 @@
         ],
         "pcb_color": "rgb(82, 108, 191)",
         "schematic_color": "rgba(0, 0, 0, 0.000)",
-        "track_width": 0.15,
+        "track_width": 0.11,
         "via_diameter": 0.45,
         "via_drill": 0.2,
         "wire_width": 6.0
@@ -672,7 +672,7 @@
     "page_layout_descr_file": ""
   },
   "schematic": {
-    "annotate_start_num": 900,
+    "annotate_start_num": 500,
     "drawing": {
       "default_bus_thickness": 12.0,
       "default_junction_size": 36.0,

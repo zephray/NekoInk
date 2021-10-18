@@ -4474,7 +4474,7 @@
     (uuid e7ad5c08-9114-4b88-a4c1-82da4efb3744)
   )
 
-  (text "Up to 1A, allocate 800mA to cascaded 5V step-up, so maximum 5V 500mA"
+  (text "Up to 2A, allocate 1.6A to cascaded 5V step-up, so maximum 5V 1A"
     (at 60.96 195.58 0)
     (effects (font (size 1.27 1.27)) (justify left bottom))
     (uuid 1c8958a9-6171-46f9-8b53-5a4eab5b2f54)
@@ -6484,7 +6484,7 @@
     (in_bom yes) (on_board yes) (fields_autoplaced)
     (uuid d82dc4e1-a513-422f-b166-296ce82571a2)
     (property "Reference" "U3" (id 0) (at 92.71 163.83 0))
-    (property "Value" "SY8008" (id 1) (at 92.71 166.37 0))
+    (property "Value" "SY8089" (id 1) (at 92.71 166.37 0))
     (property "Footprint" "Package_TO_SOT_SMD:TSOT-23-5" (id 2) (at 93.345 180.34 0)
       (effects (font (size 1.27 1.27) italic) (justify left) hide)
     )
