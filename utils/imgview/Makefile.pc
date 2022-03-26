@@ -35,8 +35,8 @@ MAKEFLAGS += --no-print-directory
 # CROSS_COMPILE can be set on the command line
 # make CROSS_COMPILE=ia64-linux-
 # Alternatively CROSS_COMPILE can be set in the environment.
-# Default value for CROSS_COMPILE is arm-linux-gnueabihf
-CROSS_COMPILE ?= arm-linux-gnueabihf-
+# Default value for CROSS_COMPILE is empty
+CROSS_COMPILE ?=
 
 # Make variables (CC, etc...)
 AS		= $(CROSS_COMPILE)gcc
@@ -49,6 +49,7 @@ STRIP	= $(CROSS_COMPILE)strip
 OBJCOPY	= $(CROSS_COMPILE)objcopy
 OBJDUMP	= $(CROSS_COMPILE)objdump
 SIZE	= $(CROSS_COMPILE)size
+SDL_CONFIG = sdl2-config
 
 # File System Utilities
 MKDIR	= mkdir -p
@@ -56,12 +57,13 @@ RM		= rm -f
 MV		= mv -f
 
 LDFILES	:=
-LIBS	:= -lm -lpthread
+LIBS	:= -lm -lpthread $(shell $(SDL_CONFIG) --libs)
 
 CPUFLAGS :=
 
 COMMONFLAGS := \
-	-DBUILD_NEKOINK \
+	$(shell $(SDL_CONFIG) --cflags) \
+	-DBUILD_PC_SIM \
 	-g -O2 \
 	-Wuninitialized \
 	-Wall \

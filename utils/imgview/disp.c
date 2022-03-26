@@ -273,6 +273,12 @@ void disp_conv(Canvas *dst, Canvas *src) {
 }
 
 void disp_scale_image_fit(Canvas *src, Canvas *dst) {
+    if ((dst->height == src->height) && (dst->width == src->width)) {
+        memcpy(dst->buf, src->buf,
+                disp_get_bpp(dst->pixelFormat) / 8 * dst->height * dst->width);
+        return;
+    }
+
     float scalex, scaley;
     scalex = (float)dst->width / (float)src->width;
     scaley = (float)dst->height / (float)src->height;

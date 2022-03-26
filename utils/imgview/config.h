@@ -3,7 +3,8 @@
 // Choose build target
 // PC simulator uses SDL for input and output
 // Target uses fbdev and evdev directly
-#define BUILD_PC_SIM
+// Should be defined in Makefile
+//#define BUILD_PC_SIM
 //#define BUILD_NEKOINK
 
 // Target resolution
