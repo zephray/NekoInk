@@ -64,7 +64,7 @@ CPUFLAGS :=
 COMMONFLAGS := \
 	$(shell $(SDL_CONFIG) --cflags) \
 	-DBUILD_PC_SIM \
-	-g -O2 \
+	-g -Og \
 	-Wuninitialized \
 	-Wall \
 
