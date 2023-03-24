@@ -11,8 +11,8 @@
 #if defined(BUILD_PC_SIM)
 #define TITLE "IMGVIEW"
 #define TARGET_FPS (30)
-#define DISP_WIDTH (1448)
-#define DISP_HEIGHT (1072)
+#define DISP_WIDTH (1800)
+#define DISP_HEIGHT (800)
 #elif defined(BUILD_NEKOINK)
 #define DISP_WIDTH (2232)
 #define DISP_HEIGHT (1680)
@@ -21,6 +21,9 @@
 #define DISP_GAMMA (2.2f)
 
 #define ENABLE_COLOR
+
+#define COLOR_STRIPE
+//#define COLOR_DELTA
 
 #ifdef ENABLE_COLOR
 // Options only applies if COLOR is enabled

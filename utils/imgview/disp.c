@@ -34,6 +34,7 @@
 #include "disp.h"
 #include "stb_image_resize.h"
 #include "stb_image.h"
+#include "stb_image_write.h"
 
 #if defined(BUILD_PC_SIM)
 // Use SDL on PC SIM
@@ -279,6 +280,10 @@ void disp_scale_image_fit(Canvas *src, Canvas *dst) {
         return;
     }
 
+#ifdef COLOR_STRIPE
+    dst->width = dst->width / 3;
+#endif
+
     float scalex, scaley;
     scalex = (float)dst->width / (float)src->width;
     scaley = (float)dst->height / (float)src->height;
@@ -303,13 +308,40 @@ void disp_scale_image_fit(Canvas *src, Canvas *dst) {
         outoffset = ((dst->height - outh) / 2) * channels * dst->width;
         outstride = 0;
     }
+
+#ifdef COLOR_STRIPE
+    dst->width = dst->width * 3;
+    outstride = dst->width * channels;
+#endif
     stbir_resize_uint8(src->buf, src->width, src->height, 0,
             dst->buf + outoffset, outw, outh, outstride, channels);
+#ifdef COLOR_STRIPE
+    char *tmpbuf = malloc(dst->width / 3 * channels);
+    for (int y = 0; y < dst->height; y++) {
+        char *lineptr = dst->buf + y * dst->width * channels;
+        memcpy(tmpbuf, lineptr, dst->width / 3 * channels);
+        for (int x = 0; x < dst->width; x++) {
+            for (int i = 0; i < channels; i++) {
+                lineptr[x * 3 + i] = tmpbuf[x / 3 * 3 + i];
+            }
+        }
+    }
+    free(tmpbuf);
+#endif
 }
 
 // For a certain pixel, get its color component on the EPD screen,
 // return in the RSH amount to get the component
 static uint32_t get_panel_color_shift(int x, int y) {
+#ifdef COLOR_STRIPE
+    int c = x % 3;
+    if (c == 0)
+        return 16; // r
+    else if (c == 1)
+        return 8; // g
+    else
+        return 0; // b
+#else
     int c = (x + (DISP_HEIGHT - y)) % 3;
     if (c == 0)
         return 16; // r
@@ -317,9 +349,19 @@ static uint32_t get_panel_color_shift(int x, int y) {
         return 0; // b
     else
         return 8; // g
+#endif
 }
 
 static uint32_t get_panel_color_component(int x, int y) {
+#ifdef COLOR_STRIPE
+    int c = x % 3;
+    if (c == 0)
+        return 0; // r
+    else if (c == 1)
+        return 1; // g
+    else
+        return 2; // b
+#else
     int c = (x + (DISP_HEIGHT - y)) % 3;
     if (c == 0)
         return 0; // r
@@ -327,6 +369,7 @@ static uint32_t get_panel_color_component(int x, int y) {
         return 2; // b
     else
         return 1; // g
+#endif
 }
 
 static float degamma_table[256];
@@ -339,7 +382,7 @@ static void build_gamma_table(void) {
         if (srgbi > 255) srgbi = 255;
         if (srgbi < 0) srgbi = 0;
         gamma_table[i] = srgbi;
-        printf("%d: %d\n", i, gamma_table[i]);
+        //printf("%d: %d\n", i, gamma_table[i]);
     }
 }
 
@@ -705,6 +748,16 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
                 err_buf[((y) % DITHERING_ERRBUF_LINES) * w + x] += error * factor / sum;
 
     #ifdef ENABLE_COLOR
+        #ifdef COLOR_STRIPE
+            // Two-Row Sierra
+            DIFFUSE_ERROR(x + 3, y + 0, w, h, quant_error, 4, 16);
+            DIFFUSE_ERROR(x + 6, y + 0, w, h, quant_error, 3, 16);
+            DIFFUSE_ERROR(x - 6, y + 1, w, h, quant_error, 1, 16);
+            DIFFUSE_ERROR(x - 3, y + 1, w, h, quant_error, 2, 16);
+            DIFFUSE_ERROR(x,     y + 1, w, h, quant_error, 3, 16);
+            DIFFUSE_ERROR(x + 3, y + 1, w, h, quant_error, 2, 16);
+            DIFFUSE_ERROR(x + 6, y + 1, w, h, quant_error, 1, 16);
+        #else
             // . . * . . 1
             // 2 . . 3 . .
             // . 4 . . 5 .
@@ -718,6 +771,7 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
             DIFFUSE_ERROR(x - 1, y + 2, w, h, quant_error, 3, 16); // 4 D=1.7
             DIFFUSE_ERROR(x + 2, y + 2, w, h, quant_error, 2, 16); // 5 D=2.8
             DIFFUSE_ERROR(x    , y + 3, w, h, quant_error, 1, 16); // 6 D=3
+        #endif
     #else
             #if 0
             // Floyd-Steinberg
@@ -756,12 +810,25 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
     free(err_buf);
 #endif
 
+    // Reformat for ARGB8888 buffer
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            uint32_t pix = DST_PIX(x, y);
+            pix |= (pix << 16) | (pix << 8);
+            pix |= 0xff000000;
+            DST_PIX(x, y) = pix;
+        }
+    }
+
+    disp_save_image(screen, "export.bmp");
+
 #if defined(BUILD_PC_SIM)
     // Reformat for ARGB8888 buffer
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
             uint32_t pix = DST_PIX(x, y);
     #ifdef ENABLE_COLOR
+            pix &= 0xff;
             uint32_t shift = get_panel_color_shift(dst_x + x, dst_y + y);
             pix <<= shift;
             //pix |= (pix << 16) | (pix << 8);
@@ -792,7 +859,19 @@ void disp_filtering_image(Canvas *src, Rect src_rect, Rect dst_rect) {
     int texture_pitch;
     SDL_LockTexture(texture, NULL, (void **)&texture_pixels, &texture_pitch);
     assert(texture_pitch == (screen->width * 4));
+#ifdef COLOR_STRIPE
+    uint32_t *src_ptr = screen->buf;
+    uint8_t *dst_ptr = texture_pixels;
+    for (int y = 0; y < screen->height / 3; y++) {
+        for (int r = 0; r < 3; r++) {
+            memcpy(dst_ptr, src_ptr, texture_pitch);
+            dst_ptr += texture_pitch;
+        }
+        src_ptr += screen->width;
+    }
+#else
     memcpy(texture_pixels, screen->buf, screen->height * texture_pitch);
+#endif
     SDL_UnlockTexture(texture);
 #elif defined(BUILD_NEKOINK)
     // TODO: Directly write into FB?
@@ -819,15 +898,22 @@ void disp_init(void) {
         exit(1);
     }
 
+    int window_width = DISP_WIDTH;
+#ifdef COLOR_STRIPE
+    int window_height = DISP_HEIGHT * 3;
+#else
+    int window_height = DISP_HEIGHT;
+#endif
+
     window = SDL_CreateWindow(TITLE, SDL_WINDOWPOS_UNDEFINED,
-            SDL_WINDOWPOS_UNDEFINED, DISP_WIDTH, DISP_HEIGHT,
+            SDL_WINDOWPOS_UNDEFINED, window_width, window_height,
             SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
 
     int w, h;
     SDL_GL_GetDrawableSize(window, &w, &h);
     // Detect 2X HiDPI screen, if high dpi, set to 1X size
-    if (w == DISP_WIDTH * 2) {
-        SDL_SetWindowSize(window, DISP_WIDTH / 2, DISP_HEIGHT / 2);
+    if (w == window_width * 2) {
+        SDL_SetWindowSize(window, window_width / 2, window_height / 2);
         SDL_GL_GetDrawableSize(window, &w, &h);
     }
 
@@ -1008,4 +1094,9 @@ Canvas *disp_load_image(char *filename) {
     Canvas *canvas = disp_create(x, y, fmt);
     memcpy(canvas->buf, data, x * y * n);
     return canvas;
+}
+
+void disp_save_image(Canvas *canvas, char *filename) {
+    stbi_write_bmp(filename, canvas->width, canvas->height / 3,
+        disp_get_bpp(canvas->pixelFormat) / 8, canvas->buf);
 }
