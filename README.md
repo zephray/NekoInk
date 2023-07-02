@@ -5,6 +5,8 @@ NekoInk is an open-source, programmable, and versatile E-paper display platform.
 
 # Hardware
 
+## Mainboard
+
 The 1st generation of NekoInk has the following specs:
 
 * Processing
@@ -27,15 +29,24 @@ The 1st generation of NekoInk has the following specs:
     - AXP209 PMIC with Lithium battery charger and coulomb counter
     - Power consumption T.B.D.
 
-Additionally, a converter board will be available to adapt the following screens:
-* 39 pin connector for ED060SC4
-* 34 pin connector for ED060SC7/SCG/SCE/SCM/SCT
-* 34 pin connector for ED060SCF/SCN/SCP/XC3/XC5/XC9/XD4/XD6/XH2/KC1/KD1
-* 33 pin connector for ED097OC1/OC4/TC2
-* 39 pin connector for ED133UT2
-* 40 pin connector for ED078KC1/KH4/GDEW078M01/078C01
+## Screen Adapter
 
-The hardware is designed with KiCAD 5.99 nightly.
+Adapter boards are available in this repo to adapt the following screens:
+
+* 39 pin connector for ED060SC4/ED133UT2
+* 34 pin connector for ED060SCF/SCN/SCP/XC3/XC5/XC9/XD4/XD6/XH2/KC1/KD1
+* 35 pin connector for ED060XC8/TC1
+* 50 pin connector for ES108FC1
+
+It's possible to use a simple FPC extender to support the following screens:
+
+* ED078KC1/KH4/GDEW078M01/078C01
+
+The hardware is designed with KiCAD 7.0.
+
+## Status
+
+The 1st gen mainboard is finished, soldered, and tested and considered stable. However there is no plan for mass-production.
 
 # Software
 

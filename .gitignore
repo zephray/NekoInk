@@ -9,6 +9,7 @@ _autosave*
 gerber/
 pcb-backups/
 pcb.step
+production/
 *.pdf
 
 # Xilinx ISE files
