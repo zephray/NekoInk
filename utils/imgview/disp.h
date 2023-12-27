@@ -83,4 +83,3 @@ void disp_init(void);
 void disp_deinit(void);
 void disp_present(Rect dest_rect, WaveformMode mode, bool partial, bool wait);
 Canvas *disp_load_image(char *filename);
-void disp_save_image(Canvas *canvas, char *filename);
