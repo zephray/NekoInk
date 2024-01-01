@@ -58,7 +58,7 @@ Linux T.B.D.
 
 ## Waveform
 
-This project uses a human-readable waveform format (iwf, Interchangable Waveform Format) described below. Currently this could be converted into .fw format used by i.MX6/7 EPDC/EPDCv2.
+This project uses a human-readable waveform format (iwf, Interchangable Waveform Format) described below. Currently this could be converted into .fw format used by i.MX6/7 EPDC/EPDCv2. Converting from Eink's wbf format is also supported.
 
 ### Waveform Format
 
@@ -66,23 +66,34 @@ The waveform consists of one descriptor file in iwf extension (ini format) and v
 
 The descriptor contains the follwoing required fields:
 
-* VERISON: the version of the descriptor, also determines the waveform type
+* VERISON: the version of the descriptor
+* NAME: (optional) original name for the waveform
+* BPP: (optional, default 4) 4 or 5, representing the internal state count used for waveform
 * PREFIX: the filename prefix for actual waveform files
 * MODES: the total modes supported by the waveform
 * TEMPS: the total number of temperature ranges supported by the waveform
-* TxRANGE: the supported temperature in degC, where x is the temperature ID
+* T*x*RANGE: the supported temperature in degC, where x is the temperature ID
+* TUPBOUND: (optional) upper bound for temperature range, each range is T*x*RANGE to T*x+1*RANGE (or TUPBOUND in case of the last one)
 
-And each mode has its own mode section named \[MODEx\], where x is the mode ID, containing the following fields:
+In v2.0, the following fields are added:
+
+* TABLES: total number of LUTs inside the waveform
+* TB*x*FC: the frame count for the table, where x is the table ID
+
+In v1.0, table are directly addressed and stored by its mode and temperature ID (expect things like PREFIX_M1_T2.csv for mode 1 and temperature range 2). In v2.0, tables are indirectly addressed and stored (expect things like PREFIX_TB2.csv for the second table, and one or more mode/temperature combination to use/ reference table 2).
+
+Each mode has its own mode section named \[MODE*x*\], where x is the mode ID, containing the following fields:
 
 * NAME: the name for that mode
-* TxFC: the frame count for the temperature in that mode, where x is the temperature ID
+* TxFC: the frame count for the temperature in that mode, where x is the temperature ID (v1.0 only)
+* T*TABLE: the table used for the temperature in that mode (v2.0 only)
 
-There should be in total of modes x temps of LUTs, saved in the filename of PREFIX_Mx_Ty.csv. Each csv file should contain the a LUT like this: lut\[src\]\[dst\]\[frame\], which means, to transition from src greyscale level to dst greyscale level, at a certain frame in a frame sequence, what voltage should be applied to the screen (0/3: GND / Keep, 1: VPOS / To black, 2: VNEG / To white). Each line contains the frame sequence for one or more source to destination pairs.
+There should be a number of LUTs, saved in the filename of either PREFIX_M*x*_T*y*.csv (v1.0) or PREFIX_TB*x*.csv. Each csv file should contain the a LUT like this: lut\[src\]\[dst\]\[frame\], which means, to transition from src greyscale level to dst greyscale level, at a certain frame in a frame sequence, what voltage should be applied to the screen (0/3: GND / Keep, 1: VNEG / To black, 2: VPOS / To white). Each line contains the frame sequence for one or more source to destination pairs.
 
 For example:
 
-* ```4,7,1,1,1,0,2``` means to transition from greyscale level 4 to greyscale level 7, there should be 5 frames, each applying VPOS VPOS VPOS GND VNEG
-* ```0:14:15,2,2,2``` means to transition from any greyscale level from 0 to 14 to greyscale level 15, there should be 3 frames, each applying VNEG VNEG VNEG
+* ```4,7,1,1,1,0,2``` means to transition from greyscale level 4 to greyscale level 7, there should be 5 frames, each applying VNEG VNEG VNEG GND VPOS
+* ```0:14:15,2,2,2``` means to transition from any greyscale level from 0 to 14 to greyscale level 15, there should be 3 frames, each applying VPOS VPOS VPOS
 
 These are provided to only illustrate the file format, they are not valid or meaningful Eink driving sequences.
 
@@ -92,8 +103,9 @@ With current design, each mode should have fixed frame count for all associated 
 
 Tools are provided in utils/ folder.
 
-* To convert from iwf to fw (iMX6/7 EPDC format): ```./mxc_wvfm_asm input.iwf output.fw``` 
-* To convert from fw to iwf: ```./mxc_wvfm_dump input.wbf output_prefix```
+* To convert from iwf to fw (iMX6/7 EPDC format): ```./mxc_wvfm_asm v1/v2 input.iwf output.fw``` 
+* To convert from fw to iwf: ```./mxc_wvfm_dump v1/v2 input.fw output_prefix```
+* To convert from wbf to iwf: ```./wbf_wvfm_dump input.wbf output_prefix```
 
 ### Generating
 
@@ -103,6 +115,6 @@ To be implemented.
 
 The design, unless otherwise specified, is released under the CERN Open Source Hardware License version 2 permissive variant, CERN-OHL-P. A copy of the license is provided in the source repository. Additionally, user guide of the license is provided on ohwr.org.
 
-The waveform converting tool is licensed under GNU GPLv2+ due to use of Linux kernel source code.
+The waveform converting tool is licensed under GNU GPLv2+ due to use of Linux kernel source code and other people's valuable prior work. See each tools' source code for the complete copyright.
 
 The image viewer tool is licensed under MIT. stb library used in the image viewer is public domain.
