@@ -1,6 +1,6 @@
 /*******************************************************************************
  * Eink waveform firmware dumper
- * Based on https://github.com/fread-ink/inkwave
+ * Based on https://github.com/fread-ink/inkwave and Linux kernel
  *
  * This is free software: you can redistribute it and/or modify it under the
  * terms of the GNU General Public License as published by the Free Software
@@ -20,6 +20,7 @@
  * Copyright 2004-2013 Freescale Semiconductor, Inc.
  * Copyright 2005-2017 Amazon Technologies, Inc.
  * Copyright 2018, 2021 Marc Juul
+ * Copyright (C) 2022 Samuel Holland <samuel@sholland.org>
  * Copyright 2024 Wenting Zhang
  ******************************************************************************/
 
@@ -69,6 +70,77 @@ struct waveform_data_header {
 }__attribute__((packed));
 
 #define HEADER_SIZE sizeof(struct waveform_data_header)
+
+#define MODE_MAX 10
+
+// Mode version to mode string
+struct mode_name_lut_t {
+    uint8_t versions[2];
+    char *mode_strings[MODE_MAX];
+};
+
+// Partially derived from linux kernel drm_epd_helper.c
+// All GL series (GL GLR GLD) are marked as GL as the underlying wavetable seems to be identical
+// Thus it's impossible to identify the correct ordering
+// -R/ -D ghosting reduction is outside of the scope of this tool
+const struct mode_name_lut_t mode_name_lut[] = {
+    {
+        // Example: ED050SC3
+        .versions = {0x01},
+        .mode_strings = {"INIT", "DU", "GL8", "GC8"}
+    },
+    {
+        // Example: ED097TC1
+        .versions = {0x03},
+        .mode_strings = {"INIT", "DU", "GL16", "GL16", "A2"}
+    },
+    {
+        // Example: ET073TC1
+        .versions = {0x09},
+        .mode_strings = {"INIT", "DU", "GC16", "A2"}
+    },
+    {
+        // Untested
+        .versions = {0x12},
+        .mode_strings = {"INIT", "DU", "NULL", "GC16", "A2", "GL16", "GL16", "DU4"}
+    },
+    {
+        // Example: ES133UT1
+        .versions = {0x15},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "A2", "DU4", "GC4"}
+    },
+    {
+        // Untested
+        .versions = {0x16},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "GL16", "GC16", "A2"}
+    },
+    {
+        // Example: ES108FC1
+        .versions = {0x18, 0x20},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "GL16", "GL16", "A2"}
+    },
+    {
+        // Example: ES103TC1
+        .versions = {0x19, 0x43},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "GL16", "GL16", "A2", "DU4"}
+    },
+    {
+        // Untested
+        .versions = {0x23},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "A2", "DU4"}
+    },
+    {
+        // Untested
+        .versions = {0x54},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "GL16", "A2"}
+    },
+    {
+        // Example: ES120MC1
+        .versions = {0x48},
+        .mode_strings = {"INIT", "DU", "GC16", "GL16", "GL16", "NULL", "A2"}
+    }
+};
+#define MODE_NAME_LUTS  (sizeof(mode_name_lut) / sizeof(*mode_name_lut))
 
 #define MAX_TABLE_LENGTH    (1024*1024)
 
@@ -219,6 +291,7 @@ int main(int argc, char **argv) {
     printf("FPL size: 0x%x\n", header->fpl_size);
     printf("FPL rate: 0x%x\n", header->fpl_rate);
 
+    printf("Mode version: 0x%x\n", header->mode_version_or_adhesive_run_num);
     printf("Waveform version: %d\n", header->waveform_version);
     printf("Waveform sub-version: %d\n", header->waveform_subversion);
     
@@ -247,6 +320,22 @@ int main(int argc, char **argv) {
     }
     else {
         printf("File size reported to be 0 in the header. Checksum check skipped.\n");
+    }
+
+    // Try to find mode description
+    char **mode_string = NULL;
+    uint8_t mode_version = header->mode_version_or_adhesive_run_num;
+    for (int i = 0; i < MODE_NAME_LUTS; i++) {
+        if ((mode_name_lut[i].versions[0] == mode_version) ||
+                (mode_name_lut[i].versions[1] == mode_version)) {
+            mode_string = mode_name_lut[i].mode_strings;
+        }
+    }
+    if (mode_string) {
+        printf("Known mode version, mode names available.\n");
+    }
+    else {
+        printf("Unknown mode version, mode names won't be available.\n");
     }
 
     // Right following the header is the temperature range table
@@ -439,6 +528,9 @@ int main(int argc, char **argv) {
     fprintf(fp, "\n");
     for (int i = 0; i < mode_count; i++) {
         fprintf(fp, "[MODE%d]\n", i);
+        if (mode_string) {
+            fprintf(fp, "NAME = %s\n", mode_string[i]);
+        }
         for (int j = 0; j < trt_entries; j++) {
             fprintf(fp, "T%dTABLE = %d\n", j, wv_modes_temps[i * trt_entries + j]);
         }
