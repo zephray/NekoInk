@@ -207,7 +207,7 @@ unsigned crc32(unsigned char *buf, int len) {
   return update_crc(crc_table, 0, buf, len);
 }
 
-void dump_phases(FILE* fp, uint8_t* buffer, int bpp, int phases) {
+void dump_phases(FILE* fp, uint8_t* buffer, int bpp, int phases, int phase_per_byte) {
     int states;
     int i, j, k, x, y;
 
@@ -217,12 +217,18 @@ void dump_phases(FILE* fp, uint8_t* buffer, int bpp, int phases) {
 
     for (i = 0; i < phases; i ++) {
         for (x = 0; x < states; x++) {
-            for (y = 0; y < states; y+=4) {
+            for (y = 0; y < states; y+=phase_per_byte) {
                 uint8_t val = *ptr++;
-                luts[i][y+0][x] = (val >> 0) & 0x3;
-                luts[i][y+1][x] = (val >> 2) & 0x3;
-                luts[i][y+2][x] = (val >> 4) & 0x3;
-                luts[i][y+3][x] = (val >> 6) & 0x3;
+                if (phase_per_byte == 4) {
+                    luts[i][y+0][x] = (val >> 0) & 0x3;
+                    luts[i][y+1][x] = (val >> 2) & 0x3;
+                    luts[i][y+2][x] = (val >> 4) & 0x3;
+                    luts[i][y+3][x] = (val >> 6) & 0x3;
+                }
+                else if (phase_per_byte == 2) {
+                    luts[i][y+0][x] = (val >> 0) & 0xf;
+                    luts[i][y+1][x] = (val >> 4) & 0xf;
+                }
             }
         }
     }
@@ -301,7 +307,14 @@ int main(int argc, char **argv) {
     printf("Number of temperature ranges: %d\n", header->trc + 1);
 
     int bpp = ((header->luts & 0xC) == 0x4) ? 5: 4;
-    printf("BPP: %d\n", bpp);
+    printf("BPP: %d (LUTS = 0x%02x)\n", bpp, header->luts);
+    bool acep = false;
+    if (header->luts == 0x15) {
+        printf("Looks like you've supplied a waveform for ACeP screens\n");
+        printf("Expect the checksum for the header to fail.\n");
+        bpp = 5;
+        acep = true;
+    }
 
     // Compare checksum
     static unsigned int crc_table[256];
@@ -328,7 +341,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < MODE_NAME_LUTS; i++) {
         if ((mode_name_lut[i].versions[0] == mode_version) ||
                 (mode_name_lut[i].versions[1] == mode_version)) {
-            mode_string = mode_name_lut[i].mode_strings;
+            mode_string = (char **)(mode_name_lut[i].mode_strings);
         }
     }
     if (mode_string) {
@@ -493,7 +506,9 @@ int main(int argc, char **argv) {
             printf("Checksum mismatch!\n");
         }
 
-        int phases = idx * 4 / ((bpp == 4) ? (16 * 16) : (32 * 32));
+        int phase_per_byte = acep ? 2 : 4;
+        int transitions = ((bpp == 4) ? (16 * 16) : (32 * 32));
+        int phases = idx * phase_per_byte / transitions;
         frame_counts[i] = phases;
 
         // Dump phases
@@ -501,7 +516,7 @@ int main(int argc, char **argv) {
         fp = fopen(fn, "w");
         assert(fp);
         size_t index = i * trt_entries + j;
-        dump_phases(fp, derle_buffer, bpp, phases);
+        dump_phases(fp, derle_buffer, bpp, phases, phase_per_byte);
         fclose(fp);
     }
 
