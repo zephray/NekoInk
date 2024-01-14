@@ -107,6 +107,8 @@ Tools are provided in utils/ folder.
 * To convert from fw to iwf: ```./mxc_wvfm_dump v1/v2 input.fw output_prefix```
 * To convert from wbf to iwf: ```./wbf_wvfm_dump input.wbf output_prefix```
 
+In some cases, the waveform stored on the panel/ controller's flash is compressed. A decompressing tool is also provided that might work.
+
 ### Generating
 
 To be implemented.
