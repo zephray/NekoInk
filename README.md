@@ -1,6 +1,8 @@
 NekoInk
 =======
 
+**This project has been superseded by [Glider](https://gitlab.com/zephray/glider) and will not be updated further.**
+
 NekoInk is an open-source, programmable, and versatile E-paper display platform. It offers connectivity options to various type of E-paper screens, and flexible programming environment choices.
 
 # Hardware
